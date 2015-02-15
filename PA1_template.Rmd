@@ -1,0 +1,71 @@
+---
+title: "Assignment 1"
+output: html_document
+---
+
+The data has been loaded to the variable 'data'.
+
+First I open and read the data:
+```{r}
+setwd('~/coursera/reproducible_research/')
+data<-read.csv('activity.csv')
+require(ggplot2)
+```
+#### What is mean total number of steps taken per day?
+
+There are data for `r length(unique(data$date))` days. The total number of steps per day is:
+```{r}
+steps_hist<-as.data.frame(cbind(unique(data$date),sapply(unique(data$date),function(x) sum(data$steps[data$date==x],na.rm=T))))
+names(steps_hist)<-c('Day','Total_Steps')
+print(steps_hist)
+```
+And now, the histogram of the total number of steps is:
+```{r}
+qplot(x=Total_Steps,data=steps_hist,geom='histogram',binwidth=1000)
+```
+
+The mean and the median of the total number of steps per day are `r mean(steps_hist$Total_Steps,na.rm=T)` and `r median(steps_hist$Total_Steps,na.rm=T)` steps per day, respectively.
+
+#### What is the average daily activity pattern?
+Plotting the average number of steps taken per interval:
+```{r}
+qplot(x=interval,y=steps,data=data,stat='summary',fun.y='mean',geom='line')
+```
+
+Now, calculating the 5 minutes interval with the largest average of steps:
+```{r}
+interval_steps<-sapply(unique(data$interval),function(x) mean(data$steps[data$interval==x],na.rm=T))
+max_step<-which(interval_steps==max(interval_steps))
+```
+
+The interval with the maximum number of steps is `r unique(data$interval)[max_step]` minutes.
+
+#### Imputing missing values
+The number of missing data is:
+```{r}
+sum(is.na(data$steps))
+```
+
+The missing values will be filled with the average of the interval:
+```{r}
+data_filled<-data
+missing_vector<-which(is.na(data_filled$steps))
+intervals<-unique(data_filled$interval)
+data_filled$steps[missing_vector]<-interval_steps[sapply(missing_vector,function(x) which(intervals==data_filled$interval[x]))]
+```
+
+And the new histogram is:
+```{r}
+steps_hist_filled<-as.data.frame(cbind(unique(data_filled$date),sapply(unique(data_filled$date),function(x) sum(data_filled$steps[data_filled$date==x],na.rm=T))))
+names(steps_hist_filled)<-c('Day','Total_Steps')
+qplot(x=interval,y=steps,data=data_filled,stat='summary',fun.y='mean',geom='line')
+```
+
+The histogram doesn't change, but the new mean `r mean(steps_hist_filled$Total_Steps,na.rm=T)` and the median `r median(steps_hist_filled$Total_Steps,na.rm=T)` are slightly different from the original values `r mean(steps_hist$Total_Steps,na.rm=T)` and `r median(steps_hist$Total_Steps,na.rm=T)`. This is because som NA's are replaced by high values and other by small values.
+
+#### Are there differences in activity patterns between weekdays and weekends?
+```{r}
+data_filled$weekend<-as.factor(weekdays(as.Date(data_filled$date))=="Saturday"|weekdays(as.Date(data_filled$date))=="Sunday")
+levels(data_filled$weekend)<-list(Weekday="FALSE",Weekend="TRUE")
+ggplot(data_filled,aes(x=interval,y=steps))+stat_summary(geom='line',fun.y='mean')+facet_wrap(~weekend,ncol=1)
+```
